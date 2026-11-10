@@ -3,7 +3,7 @@
    Daten kommen von der Apps-Script-Schnittstelle am Google Sheet. Buchungen werden
    zuerst lokal gepuffert (Warteschlange) und gesendet, sobald Netz da ist. */
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 
 /* ---------- Speicher ---------- */
 const LS = {
@@ -33,6 +33,7 @@ const ui = {
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const eur = v => (v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+const safeDecode = s => { try { return decodeURIComponent(s); } catch (e) { return s; } };
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 
 /* ---------- Schnittstelle ---------- */
@@ -669,9 +670,13 @@ function renderSetup() {
   </form></div>`;
   $('fSetup').addEventListener('submit', async e => {
     e.preventDefault();
-    const c = { api: $('sApi').value.trim(), pin: $('sPin').value.trim(), geraet: $('sGeraet').value.trim() || 'Gerät' };
+    const raw = $('sApi').value.replace(/\s+/g, '');
+    const hit = /https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec/.exec(raw) ||
+      /https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec/.exec(safeDecode(raw));
+    const c = { api: hit ? hit[0] : raw, pin: $('sPin').value.trim(), geraet: $('sGeraet').value.trim() || 'Gerät' };
     s.api = c.api; s.geraet = c.geraet;
-    if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(c.api)) { s.err = 'Die Adresse sieht nicht wie eine Apps-Script-Adresse aus (…/exec).'; renderSetup(); return; }
+    if (!raw) { s.err = 'Die Adresse der Schnittstelle fehlt. Bitte den Einrichtungslink öffnen oder die Adresse hier einfügen.'; renderSetup(); return; }
+    if (!hit) { s.err = 'Die Adresse sieht nicht wie eine Apps-Script-Adresse aus. Erwartet: https://script.google.com/macros/s/…/exec – eingegeben: ' + raw.slice(0, 80); s.api = ''; renderSetup(); return; }
     s.busy = true; s.err = null; renderSetup();
     try {
       const j = await api('ping', {}, c);
@@ -808,7 +813,7 @@ async function wake() { try { if ('wakeLock' in navigator && !wakeLock) { wakeLo
 (async function start() {
   const m = /[#&]setup=([^&]+)/.exec(location.hash);
   if (m) {
-    ui.setup.api = decodeURIComponent(m[1]);
+    ui.setup.api = safeDecode(m[1]).replace(/\s+/g, '');
     history.replaceState(null, '', location.pathname + location.search);
     if (cfg && cfg.api !== ui.setup.api && !queue.length) { cfg = null; LS.del('cfg'); LS.del('state'); st = null; }
   }

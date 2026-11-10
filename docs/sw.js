@@ -1,6 +1,6 @@
 /* Magic-Sterne – Service Worker: App startet auch ohne Netz.
    Bei jeder neuen App-Version VERSION erhöhen, dann lädt die App beim nächsten Start neu. */
-const VERSION = 'ms-1.0.0';
+const VERSION = 'ms-1.0.1';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
