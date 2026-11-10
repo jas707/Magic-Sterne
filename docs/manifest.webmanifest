@@ -1,0 +1,17 @@
+{
+  "name": "Magic-Sterne",
+  "short_name": "Magic-Sterne",
+  "description": "Kasse und Bestandsverwaltung für den Sternverkauf",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16201c",
+  "theme_color": "#1f5a45",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
