@@ -7,10 +7,10 @@
  * Bestand überschrieben, nur Bewegungen angehängt.
  */
 
-var SH = { ART: 'Artikel', ORTE: 'Orte', BEW: 'Bewegungen', BEST: 'Bestand', INFO: 'Anleitung' };
+var SH = { ART: 'Artikel', ORTE: 'Orte', BEW: 'Bewegungen', BEST: 'Bestand', INFO: 'Anleitung', PROT: 'Importprotokoll' };
 
 var ART_HEAD = ['Nr', 'Name', 'Kurzname', 'Art', 'Preis', 'Zubehör', 'Aktiv', 'Bild',
-  'Lieferanten-Nr', 'EK', 'Filter: Größe', 'Filter: Farbe'];
+  'Lieferanten-Nr', 'EK', 'Filter: Kategorie', 'Filter: Größe', 'Filter: Farbe', 'Hinweis'];
 var ORTE_HEAD = ['Ort', 'Typ', 'Aktiv'];
 var BEW_HEAD = ['Zeitpunkt', 'Vorgang', 'Art', 'Nr', 'Ort', 'Menge', 'Gerät', 'Notiz', 'Erfasst'];
 

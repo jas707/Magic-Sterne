@@ -13,5 +13,8 @@ Daten, PINs und die Adresse der Schnittstelle stehen **nicht** in diesem Reposit
 Sie liegen im Google Sheet bzw. in den Script-Eigenschaften und werden pro Gerät über
 einen Einrichtungslink (`…/#setup=<Adresse der Schnittstelle>`) und die PIN hinterlegt.
 
+Neue Saison / neue Bestandslisten importieren: siehe [IMPORT.md](IMPORT.md).
+Lokale Prüfung des Imports ohne Google: `tools/test-import.js`.
+
 Neue App-Version: in `docs/sw.js` die `VERSION` erhöhen, sonst behalten installierte
 Geräte die alte Fassung.

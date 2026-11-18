@@ -1,5 +1,5 @@
 /**
- * Sternkasse – Einrichtung, Menü und Import aus der bisherigen Excel-Datei.
+ * Sternkasse – Einrichtung, Menü, Bestandsübersicht. Import siehe Import.gs.
  */
 
 function onOpen() {
@@ -7,7 +7,10 @@ function onOpen() {
     .addItem('Einrichten / reparieren', 'menuSetup')
     .addItem('PINs festlegen …', 'menuPins')
     .addSeparator()
-    .addItem('Import aus Excel-Datei …', 'menuImport')
+    .addItem('Sicherung erstellen', 'menuBackup')
+    .addItem('Testdaten entfernen …', 'menuReset')
+    .addItem('Import aus Bestandslisten …', 'menuImport')
+    .addSeparator()
     .addItem('Bestandsübersicht neu aufbauen', 'menuBestand')
     .addItem('Bilder aus Ordner zuordnen', 'menuBilder')
     .addToUi();
@@ -15,7 +18,7 @@ function onOpen() {
 
 function menuSetup() {
   setup_();
-  SpreadsheetApp.getUi().alert('Magic-Sterne ist eingerichtet.\n\nNächste Schritte: PINs festlegen, dann Import aus Excel-Datei.');
+  SpreadsheetApp.getUi().alert('Magic-Sterne ist eingerichtet.\n\nNächste Schritte: PINs festlegen, dann Import aus Bestandslisten.');
 }
 
 function menuPins() {
@@ -38,18 +41,6 @@ function menuBilder() {
   SpreadsheetApp.getUi().alert('Bilder zugeordnet. Ordner: „Magic-Sterne Bilder“ – Dateien heißen wie die Artikel-Nr., z. B. 16B.jpg.');
 }
 
-function menuImport() {
-  var ui = SpreadsheetApp.getUi();
-  var r = ui.prompt('Import aus Excel-Datei',
-    'Die Excel-Datei in Google Drive öffnen und über „Datei → Als Google Tabellen speichern“ umwandeln.\n' +
-    'Dann hier den Link zu dieser Google-Tabelle einfügen:', ui.ButtonSet.OK_CANCEL);
-  if (r.getSelectedButton() !== ui.Button.OK) return;
-  var res = importFromUrl_(r.getResponseText().trim(), function (frage) {
-    return ui.alert(frage, ui.ButtonSet.YES_NO) === ui.Button.YES;
-  });
-  ui.alert(res);
-}
-
 /* ---------- Einrichtung ---------- */
 
 function setup_() {
@@ -70,6 +61,7 @@ function setup_() {
     sh.getRange('I:I').setNumberFormat('dd.MM.yyyy HH:mm:ss');
     sh.getRange('C2:C').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(Object.keys(ARTEN)).build());
   });
+  ensureArtColumns_();
   ensureMinColumns_();
   ensureInfo_();
   rebuildBestand_();
@@ -86,6 +78,23 @@ function ensureSheet_(name, head, init) {
   sh.setFrozenRows(1);
   if (init) init(sh);
   return sh;
+}
+
+/**
+ * Ergänzt im Artikelblatt fehlende Standardspalten. „Filter: Kategorie“ kommt vor
+ * die übrigen Filter, damit es in der Kasse als erster Filter erscheint.
+ */
+function ensureArtColumns_() {
+  var sh = ss_().getSheetByName(SH.ART);
+  ART_HEAD.forEach(function (h) {
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+    if (head.indexOf(h) >= 0) return;
+    var vor = h === 'Filter: Kategorie' ? head.indexOf('Filter: Größe') : -1;
+    var col;
+    if (vor >= 0) { sh.insertColumnBefore(vor + 1); col = vor + 1; }
+    else col = head.length + 1;
+    sh.getRange(1, col).setValue(h).setFontWeight('bold');
+  });
 }
 
 /** Für jeden Ort eine Spalte „Min: <Ort>“ im Artikelblatt. */
@@ -109,6 +118,7 @@ function ensureInfo_() {
     ['Magic-Sterne – so funktioniert dieses Sheet'],
     [''],
     ['Artikel: Stammdaten. Preise, Mindestbestände (Spalten „Min: <Ort>“), Zubehör je Stern (Artikel-Nr. mit Komma getrennt) und Filter hier pflegen.'],
+    ['   „Filter: Kategorie“ = Magic-Sterne oder Blumen-Sterne (kommt aus dem Import). „Hinweis“ = Vermerke aus der Liste, z. B. „Keine Nachlieferung“.'],
     ['   Spalten, deren Überschrift mit „Filter:“ beginnt, erscheinen in der Kasse als Filter. Neue Filter-Spalten dürfen jederzeit angelegt werden.'],
     ['   Aktiv = leer oder „ja“ zeigt den Artikel, „nein“ blendet ihn aus.'],
     ['Orte: Lager (genau einer mit Typ „Lager“) und Marktstände (Typ „Stand“). Neuer Stand = neue Zeile, danach Menü → Einrichten.'],
@@ -116,7 +126,8 @@ function ensureInfo_() {
     ['   Fehler werden durch neue Buchungen korrigiert (Storno, Korrektur, Inventur), nicht durch Löschen.'],
     ['Bestand: wird aus den Bewegungen berechnet. Rot = unter Mindestbestand. Hinweis „bestellen“ (Lager) bzw. „nachliefern“ (Stand).'],
     ['   Nach neuen Artikeln: Menü Magic-Sterne → Bestandsübersicht neu aufbauen.'],
-    ['Bilder: Ordner „Magic-Sterne Bilder“ neben diesem Sheet. Dateiname = Artikel-Nr. (z. B. 16B.jpg), dann Menü → Bilder aus Ordner zuordnen.']
+    ['Bilder: Ordner „Magic-Sterne Bilder“ neben diesem Sheet. Dateiname = Artikel-Nr. (z. B. 16B.jpg), dann Menü → Bilder aus Ordner zuordnen.'],
+    ['Neue Saison: Menü → Sicherung erstellen, → Testdaten entfernen (nur wenn wirklich alles neu soll), → Import aus Bestandslisten. Ergebnis im Blatt „Importprotokoll“.']
   ];
   sh.getRange(1, 1, txt.length, 1).setValues(txt);
   sh.getRange('A1').setFontWeight('bold').setFontSize(14);
@@ -218,7 +229,8 @@ function rebuildBestand_() {
 var COLORS_ = [['bordeaux', 'Bordeaux'], ['türkis', 'Türkis'], ['violett', 'Lila'], ['lila', 'Lila'], ['pink', 'Pink'],
   ['orange', 'Orange'], ['gelb', 'Gelb'], ['rot', 'Rot'], ['red', 'Rot'], ['blau', 'Blau'], ['blue', 'Blau'], ['grün', 'Grün'],
   ['schwarz', 'Schwarz'], ['black', 'Schwarz'], ['silber', 'Silber'], ['braun', 'Braun'], ['beige', 'Natur'],
-  ['naturweiß', 'Weiß'], ['naturwiß', 'Weiß'], ['natur', 'Natur'], ['creme', 'Weiß'], ['weiß', 'Weiß']];
+  ['naturweiß', 'Weiß'], ['naturwiß', 'Weiß'], ['natur', 'Natur'], ['creme', 'Weiß'], ['weiß', 'Weiß'],
+  ['rosa', 'Rosa'], ['mint', 'Mint'], ['grau', 'Grau'], ['anthrazit', 'Anthrazit'], ['gold', 'Gold']];
 
 function kurzname_(n, zub) {
   if (zub) {
@@ -243,125 +255,4 @@ function farben_(s) {
     if (re.test(l) && out.indexOf(c[1]) < 0) out.push(c[1]);
   });
   return out.join(', ');
-}
-
-/** Spalte in einer Kopfzeile suchen (Leerzeichen und Groß/klein egal). */
-function findCol_(headRow, name) {
-  var want = name.replace(/\s+/g, '').toLowerCase();
-  for (var i = 0; i < headRow.length; i++) if (String(headRow[i]).replace(/\s+/g, '').toLowerCase() === want) return i;
-  return -1;
-}
-
-/**
- * Übernimmt Artikel und Preise aus „Kalkulation“ und den Startbestand
- * (Spalte „Inventur“) aus „Sterne Bestellung“ der Excel-Datei.
- * Bereits gepflegte Felder (Zubehör, Mindestbestände, Filter, Bild, Aktiv) bleiben erhalten.
- */
-function importFromUrl_(url, confirm) {
-  setup_();
-  var src = SpreadsheetApp.openByUrl(url);
-  var kal = src.getSheetByName('Kalkulation');
-  if (!kal) throw new Error('Blatt „Kalkulation“ nicht gefunden.');
-  var kv = kal.getDataRange().getDisplayValues(), kraw = kal.getDataRange().getValues();
-  var kh = kv[1];
-  var cArt = findCol_(kh, 'Art-Nr.'), cEig = findCol_(kh, 'eigene Nr.'), cBez = findCol_(kh, 'Bezeichnung'),
-    cEk = findCol_(kh, 'EK-brutto'), cVk = findCol_(kh, 'VK');
-  if ([cArt, cEig, cBez, cVk].some(function (c) { return c < 0; })) throw new Error('In „Kalkulation“ fehlen Spalten (Art-Nr., eigene Nr., Bezeichnung, VK).');
-
-  var src_ = [];
-  for (var r = 2; r < kv.length; r++) {
-    var bez = String(kv[r][cBez]).trim(), artnr = String(kraw[r][cArt]).trim(), eig = String(kv[r][cEig]).trim();
-    if (!bez || (!artnr && !eig)) continue;
-    if (eig === '0') eig = '';
-    var vk = kraw[r][cVk], ek = cEk >= 0 ? kraw[r][cEk] : '';
-    src_.push({ artnr: artnr, eig: eig, name: bez.replace(/\s+/g, ' '), vk: typeof vk === 'number' ? vk : '', ek: typeof ek === 'number' ? ek : '' });
-  }
-
-  // Startbestand Lager aus „Sterne Bestellung“ (Spalte unter „Inventur“)
-  var inv = {};
-  var best = src.getSheetByName('Sterne Bestellung');
-  if (best) {
-    var bv = best.getDataRange().getValues();
-    var cInv = findCol_(bv[0], 'Inventur'), cBArt = findCol_(bv[1], 'Art-Nr.');
-    if (cInv >= 0 && cBArt >= 0) {
-      for (var i = 2; i < bv.length; i++) {
-        var a = String(bv[i][cBArt]).trim(), q = Number(bv[i][cInv]);
-        if (a && a !== '0' && q > 0) inv[a] = q;
-      }
-    }
-  }
-
-  // Artikelblatt aktualisieren
-  var sh = ss_().getSheetByName(SH.ART);
-  var all = sh.getDataRange().getValues();
-  var head = all[0].map(String), H = {};
-  head.forEach(function (h, i) { H[h] = i; });
-  var data = all.slice(1).filter(function (row) { return String(row[H['Nr']]).trim(); });
-  var byNr = {}, byArtnr = {};
-  data.forEach(function (row) { byNr[String(row[H['Nr']]).trim()] = row; if (row[H['Lieferanten-Nr']]) byArtnr[String(row[H['Lieferanten-Nr']]).trim()] = row; });
-  var zMax = 0;
-  data.forEach(function (row) { var m = /^Z(\d+)$/.exec(String(row[H['Nr']])); if (m) zMax = Math.max(zMax, +m[1]); });
-
-  var neu = 0, akt = 0, ohnePreis = [];
-  src_.forEach(function (s) {
-    var zub = !s.eig;
-    var row = zub ? byArtnr[s.artnr] : byNr[s.eig];
-    if (!row) {
-      row = head.map(function () { return ''; });
-      row[H['Nr']] = zub ? 'Z' + (++zMax) : s.eig;
-      data.push(row); neu++;
-      byNr[row[H['Nr']]] = row;
-    } else akt++;
-    var nr = String(row[H['Nr']]);
-    row[H['Name']] = s.name;
-    row[H['Art']] = zub ? 'Zubehör' : 'Stern';
-    row[H['Preis']] = s.vk;
-    row[H['EK']] = s.ek;
-    row[H['Lieferanten-Nr']] = s.artnr;
-    if (!row[H['Kurzname']]) row[H['Kurzname']] = kurzname_(s.name, zub);
-    if (!zub) {
-      var size = (/(\d{2})\s?cm/i.exec(s.name) || [])[1];
-      if (H['Filter: Größe'] !== undefined && !row[H['Filter: Größe']] && size) row[H['Filter: Größe']] = size + ' cm';
-      if (H['Filter: Farbe'] !== undefined && !row[H['Filter: Farbe']]) row[H['Filter: Farbe']] = farben_(kurzname_(s.name, false)) || 'Sonstige';
-    }
-    getOrte_().forEach(function (o) {
-      var c = H['Min: ' + o.name];
-      if (c !== undefined && row[c] === '') row[c] = /^lager$/i.test(o.typ) ? (zub ? 20 : 5) : (zub ? 10 : 3);
-    });
-    if (s.vk === '') ohnePreis.push(nr + ' ' + kurzname_(s.name, zub));
-    s.nr = nr;
-  });
-
-  // Zubehör-Vorbelegung für Sterne ohne Eintrag: alles Zubehör, Ständer nur ab 60 cm
-  var zubRows = data.filter(function (row) { return row[H['Art']] === 'Zubehör'; });
-  data.forEach(function (row) {
-    if (row[H['Art']] !== 'Stern' || row[H['Zubehör']]) return;
-    var size = Number((/(\d{2})\s?cm/i.exec(String(row[H['Name']])) || [])[1] || 0);
-    row[H['Zubehör']] = zubRows.filter(function (z) { return !/Ständer/.test(z[H['Name']]) || size >= 60; })
-      .map(function (z) { return z[H['Nr']]; }).join(', ');
-  });
-
-  sh.getRange(2, 1, Math.max(data.length, 1), head.length).clearContent();
-  sh.getRange(2, H['Nr'] + 1, data.length, 1).setNumberFormat('@');
-  sh.getRange(2, H['Lieferanten-Nr'] + 1, data.length, 1).setNumberFormat('@');
-  sh.getRange(2, 1, data.length, head.length).setValues(data.map(function (row) {
-    row[H['Nr']] = String(row[H['Nr']]); row[H['Lieferanten-Nr']] = String(row[H['Lieferanten-Nr']]); return row;
-  }));
-
-  // Startbestand buchen (als Inventur: gebucht wird die Differenz zum aktuellen Lagerbestand)
-  var lines = src_.filter(function (s) { return inv[s.artnr]; }).map(function (s) { return { nr: s.nr, menge: inv[s.artnr] }; });
-  var invMsg = 'Kein Startbestand (Spalte „Inventur“) gefunden.';
-  if (lines.length) {
-    var bew = ss_().getSheetByName(SH.BEW);
-    var ok = bew.getLastRow() <= 1 || confirm('Im Blatt „Bewegungen“ stehen schon Buchungen.\nStartbestand trotzdem als Inventur buchen? (Gebucht wird nur die Differenz.)');
-    if (ok) {
-      var res = book_([{ id: 'IMPORT-' + Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyyMMdd-HHmmss'), art: 'Inventur',
-        ort: lagerName_(), geraet: 'Import', notiz: 'Startbestand aus ' + src.getName(), lines: lines }], 'inhaber');
-      invMsg = res[0].ok ? 'Startbestand Lager gebucht: ' + lines.length + ' Artikel.' : 'Startbestand NICHT gebucht: ' + res[0].fehler;
-    } else invMsg = 'Startbestand nicht gebucht.';
-  }
-  rebuildBestand_();
-  return 'Import fertig.\n\nArtikel neu: ' + neu + ', aktualisiert: ' + akt + '.\n' + invMsg +
-    (ohnePreis.length ? '\n\nOhne Preis (in der Kasse gesperrt): ' + ohnePreis.join('; ') : '') +
-    '\n\nBitte im Blatt „Artikel“ prüfen: Zubehör je Stern und Mindestbestände sind vorbelegt.';
 }
