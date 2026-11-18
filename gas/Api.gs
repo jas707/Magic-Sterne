@@ -133,7 +133,12 @@ function moves_(von, bis) {
 function imageFolder_() {
   var p = PropertiesService.getScriptProperties();
   var id = p.getProperty('BILDER_ORDNER');
-  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* neu anlegen */ } }
+  if (id) {
+    try {
+      var alt = DriveApp.getFolderById(id);
+      if (!alt.isTrashed()) return alt; // Ordner im Papierkorb nicht weiter benutzen
+    } catch (e) { /* gelöscht oder kein Zugriff → neu anlegen */ }
+  }
   var file = DriveApp.getFileById(ss_().getId());
   var parents = file.getParents();
   var parent = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
@@ -150,7 +155,11 @@ function syncImagesFromFolder_() {
     if (m && !f.isTrashed()) map[m[1].trim()] = f;
   }
   var t = readTable_(SH.ART), iNr = t.idx['Nr'], iBild = t.idx['Bild'], changed = false;
-  if (iBild === undefined) return;
+  var info = { ordner: folder, dateien: Object.keys(map).length, zugeordnet: 0, ohneArtikel: [] };
+  if (iBild === undefined) return info;
+  var nrs = {};
+  t.rows.forEach(function (r) { nrs[nr_(r[iNr])] = true; });
+  Object.keys(map).forEach(function (n) { if (nrs[n]) info.zugeordnet++; else info.ohneArtikel.push(n); });
   var all = t.sheet.getDataRange().getValues();
   for (var r = 1; r < all.length; r++) {
     var n = nr_(all[r][iNr]), f2 = map[n];
@@ -161,6 +170,7 @@ function syncImagesFromFolder_() {
     }
   }
   if (changed) bumpImages_();
+  return info;
 }
 
 function bumpImages_() {

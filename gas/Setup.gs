@@ -38,8 +38,17 @@ function menuPins() {
 function menuBestand() { rebuildBestand_(); }
 
 function menuBilder() {
-  syncImagesFromFolder_();
-  SpreadsheetApp.getUi().alert('Bilder zugeordnet. Ordner: „Magic-Sterne Bilder“ – Dateien heißen wie die Artikel-Nr., z. B. 16B.jpg.');
+  var r = syncImagesFromFolder_(), f = r.ordner;
+  var p = f.getParents(), wo = p.hasNext() ? p.next().getName() : '(Hauptordner)';
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font:14px Arial,sans-serif;line-height:1.5">' +
+    '<p><b>Bilderordner:</b> „' + f.getName() + '“ in „' + wo + '“<br>' +
+    '<a href="' + f.getUrl() + '" target="_blank">Ordner in Google Drive öffnen</a></p>' +
+    '<p>Bilddateien im Ordner: ' + r.dateien + ', davon einem Artikel zugeordnet: ' + r.zugeordnet + '.</p>' +
+    (r.ohneArtikel.length ? '<p>Ohne passenden Artikel (Dateiname = Artikel-Nr.?): ' + r.ohneArtikel.join(', ') + '</p>' : '') +
+    '<p style="color:#666">Dateien heißen wie die Artikel-Nr., z. B. 9.jpg, 21C.jpg, 005.jpg. Neue Bilder in den Ordner legen und diesen Menüpunkt erneut ausführen.</p></div>'
+  ).setWidth(460).setHeight(260);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Bilder aus Ordner zuordnen');
 }
 
 /* ---------- Einrichtung ---------- */
