@@ -174,15 +174,28 @@ async function loadImages() {
   try {
     const idx = (await api('images')).bilder || {};
     let cache = null; try { cache = await caches.open('ms-bilder'); } catch (e) { /* ohne Cache */ }
-    for (const nr of Object.keys(idx)) {
-      if (have[nr] === idx[nr] && imgs[nr]) continue;
-      const r = await api('image', { nr });
-      if (r.data) { imgs[nr] = r.data; if (cache) await cache.put('bild/' + encodeURIComponent(nr), new Response(r.data)); }
-    }
-    for (const nr of Object.keys(imgs)) if (!(nr in idx)) { delete imgs[nr]; if (cache) await cache.delete('bild/' + encodeURIComponent(nr)); }
-    idx._stand = st.bilderStand; LS.set('imgIdx', idx);
-    refresh();
-  } catch (e) { /* nächster Versuch beim nächsten Abgleich */ } finally { ui.imgBusy = false; }
+    const todo = Object.keys(idx).filter(nr => !(have[nr] === idx[nr] && imgs[nr]));
+    const done = Object.assign({}, have); delete done._stand;
+    let fehler = 0, n = 0;
+    ui.imgProgress = todo.length ? { n: 0, von: todo.length } : null; renderStatus();
+    // einige Bilder parallel laden; ein fehlerhaftes Bild hält die anderen nicht auf
+    const worker = async () => {
+      while (todo.length) {
+        const nr = todo.shift();
+        try {
+          const r = await api('image', { nr });
+          if (r.data) { imgs[nr] = r.data; done[nr] = idx[nr]; if (cache) await cache.put('bild/' + encodeURIComponent(nr), new Response(r.data)); }
+        } catch (e) { fehler++; console.warn('Bild ' + nr + ' nicht geladen:', e.message); }
+        ui.imgProgress = { n: ++n, von: ui.imgProgress.von }; renderStatus();
+        if (n % 6 === 0) refresh(); // Bilder nach und nach sichtbar machen
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    for (const nr of Object.keys(imgs)) if (!(nr in idx)) { delete imgs[nr]; delete done[nr]; if (cache) await cache.delete('bild/' + encodeURIComponent(nr)); }
+    if (!fehler) done._stand = st.bilderStand; // bei Fehlern beim nächsten Abgleich nur die fehlenden nachladen
+    LS.set('imgIdx', done);
+    ui.imgErr = fehler;
+  } catch (e) { console.warn('Bilderliste nicht geladen:', e.message); } finally { ui.imgBusy = false; ui.imgProgress = null; refresh(); }
 }
 async function resizeImage(file, max = 480) {
   const bmp = await createImageBitmap(file);
@@ -269,6 +282,8 @@ function renderStatus() {
   else if (!ui.online || ui.syncErr) { cls = 'off'; txt = n ? `offline · ${n} offen` : 'offline'; }
   else txt = n ? `${n} offen` : 'aktuell';
   if (failed.length) { cls = 'err'; txt += ` · ${failed.length} abgelehnt`; }
+  if (ui.imgProgress) txt += ` · Bilder ${ui.imgProgress.n}/${ui.imgProgress.von}`;
+  else if (ui.imgErr) txt += ` · ${ui.imgErr} Bilder fehlen`;
   el.innerHTML = `<button class="sync ${cls}" data-act="settings" title="Abgleich"><i></i>${txt}</button>`;
 }
 
