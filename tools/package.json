@@ -2,6 +2,11 @@
   "name": "sternkasse-tools",
   "private": true,
   "description": "Lokale Prüfung des Imports (gas/Import.gs) gegen Excel-Dateien",
-  "scripts": { "test-import": "node test-import.js" },
-  "dependencies": { "xlsx": "0.18.5" }
+  "scripts": {
+    "test-import": "node test-import.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5",
+    "xlsx": "0.18.5"
+  }
 }

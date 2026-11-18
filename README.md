@@ -15,6 +15,7 @@ einen Einrichtungslink (`…/#setup=<Adresse der Schnittstelle>`) und die PIN hi
 
 Neue Saison / neue Bestandslisten importieren: siehe [IMPORT.md](IMPORT.md).
 Lokale Prüfung des Imports ohne Google: `tools/test-import.js`.
+Produktbilder aus den Lieferanten-Shops holen: `tools/bilder-holen.js` (Aufruf steht im Kopf der Datei).
 
 Neue App-Version: in `docs/sw.js` die `VERSION` erhöhen, sonst behalten installierte
 Geräte die alte Fassung.
