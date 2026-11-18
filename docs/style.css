@@ -88,6 +88,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .stock.low{color:var(--warn);font-weight:600}
 .stock.out{color:var(--danger);font-weight:600}
 .empty{grid-column:1/-1;padding:40px 10px;text-align:center;color:var(--muted)}
+/* Kategorie-Gruppen im Raster (nur wenn mehrere Kategorien sichtbar sind) */
+.gsep{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gsep:first-child{margin-top:0}
+.gsep::after{content:"";flex:1;height:1px;background:var(--line);order:3}
+.gsep .n{font-family:var(--mono);font-weight:500;letter-spacing:0;order:2}
 .chead{padding:12px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .chead h2{font-family:var(--display);font-size:18px;margin:0;margin-right:auto}
 .mode button{padding:6px 11px;font-size:14px}

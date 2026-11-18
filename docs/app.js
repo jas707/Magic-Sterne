@@ -355,19 +355,33 @@ function stockLabel(a) {
   if (s <= 0) return `<span class="stock out">${s < 0 ? s : 'leer'}</span>`;
   return `<span class="stock${s < min ? ' low' : ''}">${s < min ? '⚠ ' : ''}${s} da</span>`;
 }
+/** Reihenfolge der Kategorie-Gruppen in der Kasse; unbekannte folgen alphabetisch, ohne Kategorie zuletzt. */
+const KAT_REIHE = ['Magic-Sterne', 'Blumen-Sterne'];
+const katOf = a => ((a.filter && a.filter['Kategorie']) || [])[0] || '';
+/** Teilt die Liste in Kategorie-Gruppen, wenn sie mehr als eine Kategorie enthält (also kein Kategorie-Filter greift). */
+function groups(list) {
+  const kats = [...new Set(list.map(katOf))];
+  if (ui.tab !== 'Stern' || kats.length < 2) return [{ kat: null, list }];
+  const rank = k => k === '' ? 1e9 : KAT_REIHE.includes(k) ? KAT_REIHE.indexOf(k) : KAT_REIHE.length;
+  kats.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
+  return kats.map(kat => ({ kat, list: list.filter(a => katOf(a) === kat) }));
+}
 function renderGrid() {
   const g = $('grid'); if (!g) return;
   const list = visible();
-  g.innerHTML = list.length ? list.map(a => {
-    const q = ui.cart.get(a.nr) || 0, noPrice = a.preis == null;
-    const sub = (a.filter && a.filter['Größe'] || []).join(' / ');
-    return `<button class="tile${q ? ' inCart' : ''}" data-add="${esc(a.nr)}" ${noPrice ? 'disabled' : ''} aria-label="${esc(a.kurz)}, ${noPrice ? 'kein Preis' : eur(a.preis)}">
+  g.innerHTML = list.length ? groups(list).map(({ kat, list }) =>
+    (kat === null ? '' : `<div class="gsep" role="separator"><span>${esc(kat || 'Ohne Kategorie')}</span><span class="n">${list.length}</span></div>`) +
+    list.map(tile).join('')).join('') : `<div class="empty">Kein Artikel passt zu Suche oder Filter.</div>`;
+}
+function tile(a) {
+  const q = ui.cart.get(a.nr) || 0, noPrice = a.preis == null;
+  const sub = (a.filter && a.filter['Größe'] || []).join(' / ');
+  return `<button class="tile${q ? ' inCart' : ''}" data-add="${esc(a.nr)}" ${noPrice ? 'disabled' : ''} aria-label="${esc(a.kurz)}, ${noPrice ? 'kein Preis' : eur(a.preis)}">
       <div class="art">${artImg(a)}</div>
       <span class="tnr">${esc(a.nr)}</span>${q ? `<span class="badge">${q}</span>` : ''}
       <div class="meta"><div class="tname">${esc(a.kurz)}</div>
       <div class="trow"><span class="num">${noPrice ? 'Preis fehlt' : eur(a.preis)}</span>${stockLabel(a)}</div>
       ${sub ? `<div class="trow"><span class="stock">${esc(sub)}</span></div>` : ''}</div></button>`;
-  }).join('') : `<div class="empty">Kein Artikel passt zu Suche oder Filter.</div>`;
 }
 function renderZbar() {
   const z = $('zbar'); if (!z) return;
