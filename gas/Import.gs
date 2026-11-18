@@ -327,22 +327,67 @@ function planImport_(quellen, orte, bestand) {
 }
 
 /**
- * Zubehör-Vorschlag für einen Stern:
- *   E14 (Kabel, LED) bei allen Sternen,
- *   E27 nur bei Blumen-Sternen (Mea) – dort als Empfehlung zuerst,
- *   Ständer nur ab 60 cm, sonstiges Zubehör immer.
- * zub = [{ nr, name }]
+ * Reihenfolge der Zubehör-Vorschläge je Kategorie (Typen siehe zubTyp_).
+ * Ein Eintrag passt auf alle Typen, die so beginnen („LED E27“ passt auf „LED E27 12W“).
+ * E27 nur bei Blumen-Sternen; Ständer nur ab 60 cm; nicht erkanntes Zubehör kommt ans Ende.
  */
+var ZUB_REIHENFOLGE_ = {
+  'Magic-Sterne': ['LED E14 4W', 'Kabel E14', 'Ständer', 'LED E14 8W'],
+  'Blumen-Sterne': ['LED E14 8W', 'Kabel E14', 'LED E14 4W', 'Ständer', 'LED E27', 'Kabel E27'],
+  '': ['LED E14 4W', 'Kabel E14', 'Ständer', 'LED E14 8W']
+};
+
+/** Ordnet ein Zubehör einem Typ zu, z. B. „LED E14 4W“, „Kabel E27“, „Ständer“. */
+function zubTyp_(name) {
+  var n = String(name), sockel = /E\s?27/i.test(n) ? 'E27' : /E\s?14/i.test(n) ? 'E14' : '';
+  var watt = (/(\d+)\s?W(att)?\b/i.exec(n) || [])[1];
+  if (/Ständer/i.test(n)) return 'Ständer';
+  if (/LED|Leuchtmittel|Birne/i.test(n)) return ('LED ' + sockel + (watt ? ' ' + watt + 'W' : '')).replace(/\s+/g, ' ').trim();
+  if (/Kabel/i.test(n)) return ('Kabel ' + sockel).trim();
+  return 'Sonstiges';
+}
+
+/** Zubehör-Vorschlag für einen Stern. zub = [{ nr, name }] → Liste der Nummern in Vorschlagsreihenfolge. */
 function zubehoerFuer_(name, kategorie, zub) {
   var size = Number((/(\d{2})\s?cm/i.exec(name) || [])[1] || 0);
-  var blumen = kategorie === 'Blumen-Sterne';
-  var e27 = [], rest = [];
-  zub.forEach(function (z) {
-    if (/E\s?27/i.test(z.name)) { if (blumen) e27.push(z.nr); return; }
-    if (/Ständer/i.test(z.name) && size < 60) return;
-    rest.push(z.nr);
+  var order = ZUB_REIHENFOLGE_[kategorie] || ZUB_REIHENFOLGE_[''];
+  var rank = function (z) {
+    var t = zubTyp_(z.name);
+    if (t === 'Ständer' && size < 60) return -1;
+    for (var i = 0; i < order.length; i++) if (t.indexOf(order[i]) === 0) return i;
+    if (/^(LED|Kabel) E27/.test(t)) return -1; // E27 nur, wo ausdrücklich vorgesehen
+    return t === 'Sonstiges' ? order.length : -1;
+  };
+  return zub.map(function (z, i) { return { nr: z.nr, r: rank(z), i: i }; })
+    .filter(function (x) { return x.r >= 0; })
+    .sort(function (a, b) { return a.r - b.r || a.i - b.i; })
+    .map(function (x) { return x.nr; });
+}
+
+/** Setzt die Spalte „Zubehör“ aller Sterne neu nach zubehoerFuer_ (überschreibt Handeinträge). */
+function resetZubehoer_() {
+  var sh = ss_().getSheetByName(SH.ART);
+  var all = sh.getDataRange().getValues(), H = {};
+  all[0].map(String).forEach(function (h, i) { H[h] = i; });
+  var zub = all.slice(1).filter(function (r) { return r[H['Art']] === 'Zubehör' && !/^nein$/i.test(String(r[H['Aktiv']]).trim()); })
+    .map(function (r) { return { nr: String(r[H['Nr']]), name: String(r[H['Name']]) }; });
+  var n = 0, col = all.slice(1).map(function (r) {
+    if (r[H['Art']] !== 'Stern' || !nr_(r[H['Nr']])) return [r[H['Zubehör']]];
+    n++;
+    return [zubehoerFuer_(String(r[H['Name']]), String(r[H['Filter: Kategorie']] || ''), zub).join(', ')];
   });
-  return e27.concat(rest);
+  if (col.length) sh.getRange(2, H['Zubehör'] + 1, col.length, 1).setValues(col);
+  return n;
+}
+
+function menuZubehoer() {
+  var ui = SpreadsheetApp.getUi();
+  if (ui.alert('Zubehör-Vorschläge neu setzen',
+    'Die Spalte „Zubehör“ wird bei allen Sternen nach der festen Regel neu gefüllt:\n\n' +
+    'Magic-Sterne: ' + ZUB_REIHENFOLGE_['Magic-Sterne'].join(' → ') + '\n' +
+    'Blumen-Sterne: ' + ZUB_REIHENFOLGE_['Blumen-Sterne'].join(' → ') + '\n' +
+    '(Ständer nur ab 60 cm)\n\nVon Hand geänderte Einträge gehen dabei verloren. Fortfahren?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  ui.alert('Zubehör bei ' + resetZubehoer_() + ' Sternen neu gesetzt. Auf den Geräten die App neu laden.');
 }
 
 /* ---------- Schreiben ---------- */

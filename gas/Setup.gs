@@ -12,6 +12,7 @@ function onOpen() {
     .addItem('Import aus Bestandslisten …', 'menuImport')
     .addSeparator()
     .addItem('Bestandsübersicht neu aufbauen', 'menuBestand')
+    .addItem('Zubehör-Vorschläge neu setzen …', 'menuZubehoer')
     .addItem('Bilder aus Ordner zuordnen', 'menuBilder')
     .addToUi();
 }

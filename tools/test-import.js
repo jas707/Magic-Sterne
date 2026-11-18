@@ -138,9 +138,11 @@ ok(r17 && r17[6] === 'nein', 'Re-Import: fehlender Artikel Aktiv = nein');
 // Zubehör-Vorschlag: E14 bei allen, E27 nur bei Blumen-Sternen (zuerst), Ständer ab 60 cm
 const Z = [{ nr: 'ZB01', name: 'LED- E27- 12 Watt' }, { nr: 'ZB02', name: 'LED- E14- 8 Watt' }, { nr: 'ZB03', name: 'Kabel  E27 schwarz' },
   { nr: 'ZB04', name: 'Ständer' }, { nr: 'ZB05', name: 'Kabel  E14  weiß' }, { nr: 'ZB06', name: 'LED- E14- 4 Watt dimmbar' }];
-ok(ctx.zubehoerFuer_('Demian natur 60 cm', 'Magic-Sterne', Z).join() === 'ZB02,ZB04,ZB05,ZB06', 'Magic 60 cm: nur E14 + Ständer');
-ok(ctx.zubehoerFuer_('Phoenix natur, 40 cm', 'Magic-Sterne', Z).join() === 'ZB02,ZB05,ZB06', 'Magic 40 cm: nur E14');
-ok(ctx.zubehoerFuer_('Dalia weiß 60 cm', 'Blumen-Sterne', Z).join() === 'ZB01,ZB03,ZB02,ZB04,ZB05,ZB06', 'Blumen 60 cm: E27 zuerst, dann E14 + Ständer');
+ok(ctx.zubehoerFuer_('Demian natur 60 cm', 'Magic-Sterne', Z).join() === 'ZB06,ZB05,ZB04,ZB02', 'Magic 60 cm: 4 W → Kabel E14 → Ständer → 8 W');
+ok(ctx.zubehoerFuer_('Phoenix natur, 40 cm', 'Magic-Sterne', Z).join() === 'ZB06,ZB05,ZB02', 'Magic 40 cm: ohne Ständer');
+ok(ctx.zubehoerFuer_('Dalia weiß 60 cm', 'Blumen-Sterne', Z).join() === 'ZB02,ZB05,ZB06,ZB04,ZB01,ZB03', 'Blumen 60 cm: 8 W → Kabel E14 → 4 W → Ständer → LED E27 → Kabel E27');
+ok(ctx.zubehoerFuer_('Dalia rot 40 cm', 'Blumen-Sterne', Z).join() === 'ZB02,ZB05,ZB06,ZB01,ZB03', 'Blumen 40 cm: ohne Ständer');
+ok(['LED E27 12W', 'LED E14 8W', 'Kabel E27', 'Ständer', 'Kabel E14', 'LED E14 4W'].join() === Z.map(z => ctx.zubTyp_(z.name)).join(), 'Zubehör-Typen erkannt');
 
 console.log(fail ?`\n${fail} Test(s) fehlgeschlagen.` : '\nAlle Selbsttests bestanden.');
 process.exit(fail ? 1 : 0);

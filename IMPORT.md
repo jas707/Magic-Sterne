@@ -38,7 +38,11 @@ Den Code dafür gibt es noch in der Git-Historie und in der Sicherung unter `ste
    - Bei Fehlern wird nichts geschrieben.
    - Mit „Ja“ wird importiert.
 6. Im Blatt **Artikel** nachsehen:
-   - **Zubehör je Stern:** Vorbelegt ist E14 (Kabel, LED) bei allen Sternen, E27 zusätzlich und zuerst nur bei den Blumen-Sternen (Mea), der Ständer nur bei 60 cm.
+   - **Zubehör je Stern:** Vorbelegt in fester Reihenfolge (Ständer nur bei 60 cm):
+     - Magic-Sterne: LED E14 4 W → Kabel E14 → Ständer → LED E14 8 W
+     - Blumen-Sterne: LED E14 8 W → Kabel E14 → LED E14 4 W → Ständer → LED E27 → Kabel E27
+
+     Die Regel steht in `ZUB_REIHENFOLGE_` in `gas/Import.gs`. Mit **Menü → Zubehör-Vorschläge neu setzen …** wird sie auf alle Sterne angewendet; von Hand geänderte Einträge gehen dabei verloren.
    - **Mindestbestände:** Die Spalten „Min: …“ sind vorbelegt.
    - **Sterne ohne Größe:** Sie haben keinen Größenfilter. Das Importprotokoll nennt sie.
 7. Auf den Geräten die App neu laden oder in den Einstellungen „Abgleich“ wählen.
