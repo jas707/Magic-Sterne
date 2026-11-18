@@ -10,6 +10,25 @@
  */
 const fs = require('fs'), path = require('path'), vm = require('vm'), X = require('xlsx'), sharp = require('sharp');
 
+// Nur die Übersicht nach Handarbeit im Ordner (verschoben/gelöscht) neu erzeugen:
+//   node bilder-holen.js --nur-uebersicht <Ausgabeordner>
+if (process.argv[2] === '--nur-uebersicht') {
+  const D = process.argv[3], f = path.join(D, 'ergebnis.json');
+  const res = JSON.parse(fs.readFileSync(f, 'utf8')).map(r => {
+    const haupt = fs.existsSync(path.join(D, r.nr + '.jpg')), pr = fs.existsSync(path.join(D, 'pruefen', r.nr + '.jpg'));
+    const auto = r.auto || r.status; // Status aus der automatischen Suche
+    const ersatz = /^Ersatz/.test(auto) ? ' (Ersatzbild)' : '';
+    if (haupt) return { ...r, auto, datei: r.nr + '.jpg', status: /^(sicher|wahrscheinlich)/.test(auto) ? auto : 'von Hand bestätigt' + ersatz };
+    if (pr) return { ...r, auto, datei: 'pruefen/' + r.nr + '.jpg', status: auto };
+    return { ...r, auto, datei: null, status: r.url ? 'verworfen – Shop-Bild passt nicht, eigenes Foto nötig' : 'nicht im Shop – eigenes Foto nötig' };
+  });
+  fs.writeFileSync(f, JSON.stringify(res, null, 2));
+  fs.writeFileSync(path.join(D, 'uebersicht.html'), uebersicht(res));
+  console.log('Übersicht aktualisiert: ' + res.filter(r => r.datei && !r.datei.startsWith('pruefen')).length + ' Bilder im Hauptordner, ' +
+    res.filter(r => r.datei && r.datei.startsWith('pruefen')).length + ' zum Prüfen, ' + res.filter(r => !r.datei).length + ' ohne Bild.');
+  process.exit(0);
+}
+
 const [OUT, ...FILES] = process.argv.slice(2);
 if (!OUT || FILES.length < 2) { console.error('Aufruf: node bilder-holen.js <Ausgabeordner> <Magic.xlsx> <Mea.xlsx> [Sterne 2025.xlsx]'); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
@@ -166,7 +185,7 @@ async function mea(a) {
 
 function uebersicht(res) {
   const e = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const cls = s => /^sicher/.test(s) ? 'ok' : /^wahrsch/.test(s) ? 'mid' : 'warn';
+  const cls = s => /^(sicher|von Hand)/.test(s) ? 'ok' : /^wahrsch/.test(s) ? 'mid' : 'warn';
   return `<!doctype html><meta charset="utf-8"><title>Sternbilder prüfen</title>
 <style>body{font:14px system-ui,sans-serif;margin:16px;background:#f4f4f1;color:#1b2320}h1{font-size:20px}
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}.c{background:#fff;border-radius:10px;padding:10px;box-shadow:0 0 0 1px #ddd}
